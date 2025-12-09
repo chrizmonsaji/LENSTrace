@@ -186,7 +186,7 @@ The backend is responsible for **receiving, validating, and storing** snapshots 
     ```
   - JSON line (same event, structured).
 
-- Emits a **terminal box** per snapshot:
+- Emits a **logs output** per snapshot:
 
   ```text
   📡 LENSTRACE — SNAPSHOT CAPTURED
