@@ -279,7 +279,7 @@ After cleanup, everything is **log‑clean and snapshot‑clean**, ready for a f
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/YOUR_USERNAME/LENSTRACE.git
+git clone https://github.com/chrizmonsaji/LENSTrace.git
 cd LENSTRACE
 
 # 2. Make scripts executable
