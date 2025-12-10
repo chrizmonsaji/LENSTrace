@@ -191,7 +191,7 @@ The backend is responsible for **receiving, validating, and storing** snapshots 
   ```text
   📡 LENSTRACE — SNAPSHOT CAPTURED
   ┌─────────────────────────────────────────────────────────────┐
-  │ IP         : 203.0.113.42                                  │
+  │ IP         : 203.0.113.42                                   │
   │ Timestamp  : 2025-12-09 16:00:00 UTC                        │
   │ Consent    : GRANTED                                        │
   │ Device     : Integrated Camera                              │
