@@ -7,7 +7,7 @@
 
 clear
 
-# ------------------ Branding (UNCHANGED) -------------------
+# ------------------ Branding (PRESERVED) --------------------
 echo -e "\e[35m"
 cat << "EOF"
 ██╗     ███████╗███╗   ██╗███████╗████████╗██████╗  █████╗  ██████╗███████╗
@@ -80,25 +80,39 @@ echo "[✓] Cloudflared binary ready"
 
 # ------------------ Tunnel Startup --------------------------
 echo "[*] Establishing Cloudflare Tunnel..."
-nohup "$CLOUDFLARED" tunnel --url "http://$HOST:$PORT" \
-  --no-autoupdate > "$TUNNEL_LOG" 2>&1 &
+nohup "$CLOUDFLARED" tunnel \
+  --url "http://$HOST:$PORT" \
+  --no-autoupdate \
+  > "$TUNNEL_LOG" 2>&1 &
 
-sleep 5
+# ------------------ Resolve Public URL ----------------------
+echo "[*] Resolving public tunnel URL..."
 
-# ------------------ Public URL Extraction -------------------
-PUBLIC_URL=$(grep -oE "https://[-a-zA-Z0-9\.]+\.trycloudflare\.com" "$TUNNEL_LOG" | head -n1)
+PUBLIC_URL=""
+for i in {1..20}; do
+  PUBLIC_URL=$(grep -oE "https://[a-zA-Z0-9.-]+\.trycloudflare\.com" "$TUNNEL_LOG" | head -n1)
+  if [ -n "$PUBLIC_URL" ]; then
+    break
+  fi
+  sleep 1
+done
 
 if [ -z "$PUBLIC_URL" ]; then
-  echo "[!] Tunnel failed. Check $TUNNEL_LOG"
+  echo "[!] Tunnel started but public URL not detected yet"
+  echo "[!] Check manually: $TUNNEL_LOG"
   kill $PHP_PID 2>/dev/null
   exit 1
 fi
 
-echo -e "[✓] Tunnel established"
+# ------------------ Success Output --------------------------
+echo "[✓] Tunnel established"
 echo -e "🌐 Public URL: \e[36m$PUBLIC_URL\e[0m"
 echo "--------------------------------------------------"
 echo "📡 LIVE CAPTURE MONITOR"
 echo "Press Ctrl+C to stop"
 
-# ------------------ Live Monitor ----------------------------
+# ------------------ Live Capture Monitor --------------------
 tail -f capture/*.log 2>/dev/null
+
+# ------------------ Cleanup on Exit -------------------------
+trap 'echo; echo "[*] Shutting down..."; kill $PHP_PID 2>/dev/null; exit' INT TERM
